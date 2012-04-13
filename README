@@ -2,4 +2,6 @@ Eklone
 
 Little scripts to copy and install a clone of an ekylibre installation
 
+eklone-pg <server> <server-path-to-webapp> [<local-path-to-webapp>]
+
 Dependencies: OpenSSH-Server
