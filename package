@@ -1,0 +1,25 @@
+#!/bin/bash
+rails_root=$1
+arkpath=$2
+conn=`ruby -e "require 'yaml'; config = YAML.load_file('${rails_root}/config/database.yml')['production']; puts \"#{config['host']||'127.0.0.1'}:#{config['port']||5432}:#{config['database']}:#{config['username']}:#{config['password']}\""`
+pgpass=$HOME/.pgpass
+original=$HOME/.pgpass.original
+if [ -e $pgpass ]; then
+    mv $pgpass $original
+fi
+echo $conn > $pgpass
+chmod 600 $pgpass
+tmp_dir="/tmp/packaging"
+rm -fr $tmp_dir
+mkdir -p $tmp_dir
+cd $tmp_dir
+echo `basename $rails_root` > name
+cp -r ${rails_root} webapp
+mkdir db
+echo $conn > db/config
+pg_dump -w `echo $conn | cut -d ':' -f3` > db/dump.sql
+tar cjvf ${arkpath} *
+rm -fr $tmp_dir $pgpass
+if [ -e ${original} ]; then
+    mv ${original} ${pgpass}
+fi

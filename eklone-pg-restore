@@ -1,0 +1,19 @@
+#!/bin/bash 
+database=$1
+username=$2
+password=$3
+backup=$4
+
+count=`psql -q -t -A -c "SELECT count(*) FROM pg_catalog.pg_user WHERE usename='${username}'"`
+if [ "${count}" = "0" ]; then
+    psql -q -c "CREATE USER ${username} WITH ENCRYPTED PASSWORD '${password}'"
+else
+    psql -q -c "ALTER USER ${username} WITH ENCRYPTED PASSWORD '${password}'"
+fi
+count=`psql -q -t -A -c "SELECT count(*) FROM pg_catalog.pg_database WHERE datname='${database}'"`
+if [ "${count}" != "0" ]; then
+    psql -q -c "DROP DATABASE ${database}"
+fi
+psql -q -c "CREATE DATABASE ${database}"
+psql -q -c "GRANT ALL ON DATABASE ${database} TO ${username}"
+psql -f $backup ${database}

@@ -1,0 +1,46 @@
+#!/bin/sh
+# Require open-ssh server on distant machine
+# and postgresql used as DB
+
+origin=$1
+rails_root=$2
+output=$3
+if [ -z "$output" ]; then
+    output=$rails_root
+fi
+
+pkg=/tmp/pkg-`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c32`
+ark=/tmp/ark-`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c32`.tar.bz2
+
+p=`readlink -f $0`
+current_dir=`dirname $p`
+
+scp $current_dir/package ${origin}:${pkg}
+ssh ${origin} "${pkg} ${rails_root} ${ark}"
+scp ${origin}:${ark} ${ark}
+# ssh ${origin} "rm ${pkg} ${ark}"
+
+tmp_dir=/tmp/packaging`< /dev/urandom tr -dc a-z | head -c8`
+rm -fr $tmp_dir
+mkdir -p $tmp_dir
+cd $tmp_dir
+tar xjvf ${ark}
+mkdir -p `dirname $output`
+sudo mv webapp ${output}
+
+database=`cut -d ':' -f3 db/config`
+username=`cut -d ':' -f4 db/config`
+password=`cut -d ':' -f5 db/config`
+
+$current_dir/eklone-pg-restore ${database} ${username} ${password} db/dump.sql
+# su - postgres -c "$current_dir/eklone-pg-restore ${database} ${username} ${password} db/dump.sql"
+
+cd ${output}
+
+bundle install
+
+if [ -e /etc/init.d/apache2 ]; then
+    sudo /etc/init.d/apache2 restart
+fi
+
+rm -fr $pkg $ark $tmp_dir
